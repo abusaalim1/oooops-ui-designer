@@ -5,7 +5,7 @@ import { MockApp } from "@/components/oops/MockApp";
 
 export const Route = createFileRoute("/build")({
   validateSearch: (search: Record<string, unknown>) => ({
-    prompt: typeof search.prompt === "string" ? search.prompt : "",
+    prompt: typeof search["prompt"] === "string" ? (search["prompt"] as string) : "",
   }),
   head: () => ({
     meta: [
