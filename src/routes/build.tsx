@@ -105,7 +105,7 @@ function Studio() {
 
   return (
     <div className="flex h-screen flex-col bg-background">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3">
+      <header className="glass-soft flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">
           <Logo />
           <span className="hidden rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground sm:inline">
@@ -113,7 +113,7 @@ function Studio() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex rounded-full border border-border bg-background p-0.5 lg:hidden">
+          <div className="glass-chip flex rounded-full p-0.5 lg:hidden">
             {(["chat", "preview"] as const).map((v) => (
               <button
                 key={v}
@@ -126,7 +126,7 @@ function Studio() {
               </button>
             ))}
           </div>
-          <button className="rounded-xl border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-secondary">
+          <button className="glass-chip rounded-xl px-3 py-2 text-xs font-medium transition-colors hover:bg-secondary">
             Share
           </button>
         </div>
@@ -135,7 +135,7 @@ function Studio() {
       <div className="flex min-h-0 flex-1">
         {/* Chat */}
         <section
-          className={`flex min-h-0 w-full flex-col border-r border-border bg-surface lg:flex lg:w-[400px] ${
+          className={`glass-soft flex min-h-0 w-full flex-col border-r border-border lg:flex lg:w-[400px] ${
             mobileView === "chat" ? "flex" : "hidden"
           }`}
         >
@@ -194,13 +194,13 @@ function Studio() {
                 <button
                   key={s}
                   onClick={() => setInput(s)}
-                  className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                  className="glass-chip rounded-full px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
                 >
                   {s}
                 </button>
               ))}
             </div>
-            <div className="rounded-2xl border border-border bg-background p-2">
+            <div className="glass rounded-2xl p-2">
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -232,8 +232,8 @@ function Studio() {
         <section
           className={`min-h-0 w-full flex-1 flex-col ${mobileView === "preview" ? "flex" : "hidden"} lg:flex`}
         >
-          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-4 py-2">
-            <div className="flex rounded-full border border-border bg-background p-0.5">
+          <div className="glass-soft flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2">
+            <div className="glass-chip flex rounded-full p-0.5">
               {(["preview", "code"] as const).map((t) => (
                 <button
                   key={t}
@@ -246,7 +246,7 @@ function Studio() {
                 </button>
               ))}
             </div>
-            <div className="flex rounded-full border border-border bg-background p-0.5">
+            <div className="glass-chip flex rounded-full p-0.5">
               {(["desktop", "mobile"] as const).map((d) => (
                 <button
                   key={d}
