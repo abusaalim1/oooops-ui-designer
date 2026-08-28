@@ -1,11 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { Copy, Loader2 } from "lucide-react";
 import { Logo } from "@/components/oops/Logo";
-import { MockApp } from "@/components/oops/MockApp";
+import { ThemeToggle } from "@/components/oops/ThemeToggle";
+import { useTheme } from "@/lib/theme";
 
 export const Route = createFileRoute("/build")({
   validateSearch: (search: Record<string, unknown>) => ({
     prompt: typeof search["prompt"] === "string" ? (search["prompt"] as string) : "",
+    device: search["device"] === "mobile" ? ("mobile" as const) : ("desktop" as const),
   }),
   head: () => ({
     meta: [
@@ -15,93 +19,118 @@ export const Route = createFileRoute("/build")({
         content: "Chat with ooops and watch your app's frontend take shape in a live preview.",
       },
       { property: "og:title", content: "Studio — ooops" },
-      { property: "og:description", content: "Chat on the left, live UI preview on the right." },
+      { property: "og:description", content: "Chat on the left, live AI-generated UI on the right." },
     ],
   }),
   component: Studio,
 });
 
-type Message = { id: number; role: "user" | "ooops"; text: string; steps?: string[] };
+type Message = { id: number; role: "user" | "ooops"; text: string };
 
-const STEPS = [
-  "Reading the brief",
-  "Picking type scale & palette",
-  "Laying out screens",
-  "Polishing spacing and states",
-];
+const EMPTY_STATE = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,sans-serif;display:grid;place-items:center;background:#faf7f3;color:#8b8378}
+p{font-size:14px}</style></head><body><p>Your design will appear here.</p></body></html>`;
+
+function clean(raw: string) {
+  return raw
+    .replace(/^\s*```(?:html)?\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+}
 
 function Studio() {
-  const { prompt } = Route.useSearch();
-  const [messages, setMessages] = useState<Message[]>(() =>
-    prompt
-      ? [
-          { id: 1, role: "user", text: prompt },
-          {
-            id: 2,
-            role: "ooops",
-            text: "Nice one. I sketched a warm, editorial layout with a soft hero, three offer cards and a mobile-first nav. Tell me what to change.",
-            steps: STEPS,
-          },
-        ]
-      : [
-          {
-            id: 1,
-            role: "ooops",
-            text: "Hi, I'm ooops. I only design frontends — web or Android. Describe a screen and I'll draw it.",
-          },
-        ],
-  );
+  const { prompt, device: initialDevice } = Route.useSearch();
+  const { theme } = useTheme();
+
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 1,
+      role: "ooops",
+      text: "Hi, I'm ooops. I design frontends — web pages and Android screens. Describe one and I'll draw it.",
+    },
+  ]);
   const [input, setInput] = useState("");
-  const [thinking, setThinking] = useState(false);
-  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [busy, setBusy] = useState(false);
+  const [html, setHtml] = useState<string | null>(null);
+  const [device, setDevice] = useState<"desktop" | "mobile">(initialDevice);
   const [tab, setTab] = useState<"preview" | "code">("preview");
   const [mobileView, setMobileView] = useState<"chat" | "preview">("chat");
   const endRef = useRef<HTMLDivElement>(null);
+  const htmlRef = useRef<string | null>(null);
+  const startedRef = useRef(false);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, thinking]);
+  }, [messages, busy]);
+
+  const run = useCallback(
+    async (text: string, targetDevice: "desktop" | "mobile") => {
+      setBusy(true);
+      setMessages((m) => [...m, { id: Date.now(), role: "user", text }]);
+      setMobileView("preview");
+      setTab("preview");
+      try {
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            prompt: text,
+            device: targetDevice,
+            theme,
+            ...(htmlRef.current ? { previousHtml: htmlRef.current } : {}),
+          }),
+        });
+        if (!res.ok || !res.body) throw new Error((await res.text()) || "Design generation failed.");
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let raw = "";
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          raw += decoder.decode(value, { stream: true });
+          setHtml(clean(raw));
+        }
+        const final = clean(raw);
+        if (!final.toLowerCase().includes("<html")) {
+          throw new Error("ooops returned something odd. Try rephrasing your request.");
+        }
+        htmlRef.current = final;
+        setHtml(final);
+        setMessages((m) => [
+          ...m,
+          {
+            id: Date.now() + 1,
+            role: "ooops",
+            text: "Done. Tell me what to change: palette, density, layout, copy — anything.",
+          },
+        ]);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Something went wrong.";
+        toast.error(message);
+        setMessages((m) => [
+          ...m,
+          { id: Date.now() + 2, role: "ooops", text: `I couldn't finish that: ${message}` },
+        ]);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [theme],
+  );
+
+  useEffect(() => {
+    if (startedRef.current || !prompt.trim()) return;
+    startedRef.current = true;
+    void run(prompt.trim(), initialDevice);
+  }, [prompt, initialDevice, run]);
 
   const send = () => {
     const text = input.trim();
-    if (!text || thinking) return;
+    if (!text || busy) return;
     setInput("");
-    setMessages((m) => [...m, { id: Date.now(), role: "user", text }]);
-    setThinking(true);
-    setTimeout(() => {
-      setThinking(false);
-      setMessages((m) => [
-        ...m,
-        {
-          id: Date.now() + 1,
-          role: "ooops",
-          text: "Done — updated the layout, tightened the type scale and refreshed the accent colour. Want it denser or airier?",
-          steps: STEPS.slice(1),
-        },
-      ]);
-    }, 1400);
+    void run(text, device);
   };
-
-  const code = useMemo(
-    () =>
-      `export function Hero() {
-  return (
-    <section className="canvas-glow px-6 py-20">
-      <p className="text-xs uppercase tracking-[0.2em] text-primary">
-        Slow travel
-      </p>
-      <h1 className="mt-3 font-display text-5xl font-extrabold">
-        Places worth staying longer.
-      </h1>
-      <div className="mt-6 flex gap-3">
-        <Button>Find a stay</Button>
-        <Button variant="outline">Browse guides</Button>
-      </div>
-    </section>
-  );
-}`,
-    [],
-  );
 
   return (
     <div className="flex h-screen flex-col bg-background">
@@ -109,7 +138,7 @@ function Studio() {
         <div className="flex items-center gap-3">
           <Logo />
           <span className="hidden rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground sm:inline">
-            fernweh-ui
+            Studio
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -126,14 +155,25 @@ function Studio() {
               </button>
             ))}
           </div>
-          <button className="glass-chip rounded-xl px-3 py-2 text-xs font-medium transition-colors hover:bg-secondary">
-            Share
+          <ThemeToggle />
+          <button
+            onClick={() => {
+              if (!html) {
+                toast.error("Generate a design first.");
+                return;
+              }
+              void navigator.clipboard.writeText(html);
+              toast.success("HTML copied to clipboard");
+            }}
+            className="glass-chip inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-colors hover:bg-secondary"
+          >
+            <Copy className="size-3.5" />
+            Copy code
           </button>
         </div>
       </header>
 
       <div className="flex min-h-0 flex-1">
-        {/* Chat */}
         <section
           className={`glass-soft flex min-h-0 w-full flex-col border-r border-border lg:flex lg:w-[400px] ${
             mobileView === "chat" ? "flex" : "hidden"
@@ -152,37 +192,15 @@ function Studio() {
                       className="mt-0.5 size-6 shrink-0 rounded-lg"
                       style={{ background: "var(--gradient-warm)" }}
                     />
-                    <div className="min-w-0">
-                      {m.steps && (
-                        <ul className="mb-2 space-y-1.5">
-                          {m.steps.map((s) => (
-                            <li key={s} className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <svg
-                                viewBox="0 0 24 24"
-                                className="size-3.5 text-mint"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="3"
-                              >
-                                <path d="M5 13l4 4L19 7" />
-                              </svg>
-                              {s}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <p className="text-sm leading-relaxed">{m.text}</p>
-                    </div>
+                    <p className="min-w-0 text-sm leading-relaxed">{m.text}</p>
                   </div>
                 )}
               </div>
             ))}
-            {thinking && (
+            {busy && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="size-1.5 animate-bounce rounded-full bg-primary" />
-                <span className="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:120ms]" />
-                <span className="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:240ms]" />
-                ooops is drawing…
+                <Loader2 className="size-3.5 animate-spin text-primary" />
+                ooops is designing…
               </div>
             )}
             <div ref={endRef} />
@@ -211,13 +229,13 @@ function Studio() {
                   }
                 }}
                 rows={2}
-                placeholder="Ask ooops to change the UI…"
+                placeholder="Ask ooops to design or change the UI…"
                 className="w-full resize-none bg-transparent px-2 py-1 text-sm outline-none placeholder:text-muted-foreground"
               />
               <div className="flex justify-end">
                 <button
                   onClick={send}
-                  disabled={!input.trim() || thinking}
+                  disabled={!input.trim() || busy}
                   className="rounded-xl px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
                   style={{ background: "var(--gradient-warm)" }}
                 >
@@ -228,7 +246,6 @@ function Studio() {
           </div>
         </section>
 
-        {/* Preview */}
         <section
           className={`min-h-0 w-full flex-1 flex-col ${mobileView === "preview" ? "flex" : "hidden"} lg:flex`}
         >
@@ -251,11 +268,11 @@ function Studio() {
                 <button
                   key={d}
                   onClick={() => setDevice(d)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                     device === d ? "bg-secondary text-foreground" : "text-muted-foreground"
                   }`}
                 >
-                  {d}
+                  {d === "desktop" ? "Web" : "Android"}
                 </button>
               ))}
             </div>
@@ -265,14 +282,19 @@ function Studio() {
             {tab === "preview" ? (
               <div
                 className={`mx-auto h-full overflow-hidden border border-border bg-background shadow-[var(--shadow-lift)] ${
-                  device === "mobile" ? "w-[320px] max-w-full rounded-[2rem]" : "w-full rounded-2xl"
+                  device === "mobile" ? "w-[360px] max-w-full rounded-[2rem]" : "w-full rounded-2xl"
                 }`}
               >
-                <MockApp device={device} />
+                <iframe
+                  title="Generated design preview"
+                  srcDoc={html ?? EMPTY_STATE}
+                  sandbox="allow-scripts"
+                  className="h-full w-full border-0 bg-white"
+                />
               </div>
             ) : (
-              <pre className="surface-card mx-auto max-w-3xl overflow-x-auto p-5 font-mono text-xs leading-relaxed text-muted-foreground">
-                {code}
+              <pre className="surface-card mx-auto max-w-4xl overflow-x-auto p-5 font-mono text-xs leading-relaxed text-muted-foreground">
+                {html ?? "// Generate a design to see its code."}
               </pre>
             )}
           </div>
