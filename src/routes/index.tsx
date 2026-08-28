@@ -42,14 +42,14 @@ function Landing() {
     <main className="relative min-h-screen overflow-hidden">
       <div className="canvas-glow pointer-events-none absolute inset-0 -z-10" />
 
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5">
+      <header className="glass sticky top-4 z-20 mx-auto mt-4 flex w-[calc(100%-2.5rem)] max-w-6xl items-center justify-between rounded-2xl px-5 py-3">
         <Logo />
         <nav className="flex items-center gap-4 text-sm text-muted-foreground">
           <span className="hidden sm:inline">Showcase</span>
           <span className="hidden sm:inline">Docs</span>
           <button
             onClick={() => start("A clean SaaS landing page for a habit tracker")}
-            className="rounded-full border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground shadow-[var(--shadow-soft)] transition-colors hover:bg-secondary"
+            className="glass-chip rounded-full px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
           >
             Open studio
           </button>
@@ -57,7 +57,7 @@ function Landing() {
       </header>
 
       <section className="mx-auto w-full max-w-3xl px-5 pt-10 pb-20 text-center sm:pt-20">
-        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted-foreground">
+        <span className="glass-chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-muted-foreground">
           <span className="size-1.5 rounded-full bg-mint" />
           Frontend only. Web &amp; Android.
         </span>
@@ -72,7 +72,7 @@ function Landing() {
           appear, tweak them in chat.
         </p>
 
-        <div className="surface-card mx-auto mt-8 max-w-2xl p-2 text-left shadow-[var(--shadow-lift)]">
+        <div className="glass mx-auto mt-8 max-w-2xl rounded-[var(--radius-3xl)] p-2 text-left shadow-[var(--shadow-lift)]">
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -107,7 +107,7 @@ function Landing() {
             <button
               key={idea}
               onClick={() => start(idea)}
-              className="rounded-full border border-border bg-surface/70 px-3.5 py-2 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+              className="glass-chip rounded-full px-3.5 py-2 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
             >
               {idea}
             </button>
