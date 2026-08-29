@@ -1,14 +1,24 @@
-# Welcome to your Lovable project
+# Oooops UI Designer
+
+Build a clone lovable for designing UI.
+
+
+
+Don't make the AI like fully lovable this AI will just make frontend of any web/Android apps .
+
+
+
+The AI called ooops and the UI must be aesthetic and clean and lovely like lovable make the chat+build section and UI only don't make the backend okay
 
 This project was built with [Lovable](https://lovable.dev).
 
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/fe679522-d2be-4f75-bfc1-fcdaab2b65ea).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +30,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
