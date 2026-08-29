@@ -1,38 +1,91 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { DESIGN_SYSTEM_PROMPT, buildUserPrompt } from "@/lib/design.server";
+import {
+  DESIGN_SYSTEM_PROMPT,
+  PLAN_SYSTEM_PROMPT,
+  buildPlanPrompt,
+  buildUserPrompt,
+} from "@/lib/design.server";
+import { CREDIT_COST } from "@/lib/credits";
 
 const Body = z.object({
-  prompt: z.string().min(3).max(2000),
+  prompt: z.string().min(3).max(4000),
+  mode: z.enum(["plan", "build"]).default("build"),
   device: z.enum(["desktop", "mobile"]).default("desktop"),
   theme: z.enum(["light", "dark"]).default("light"),
   previousHtml: z.string().max(120000).optional(),
+  plan: z.string().max(8000).optional(),
 });
+
+function userClient(token: string) {
+  const url = process.env["SUPABASE_URL"] ?? "";
+  const key = process.env["SUPABASE_PUBLISHABLE_KEY"] ?? "";
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (input, init) => {
+        const headers = new Headers(init?.headers);
+        headers.set("apikey", key);
+        headers.set("Authorization", `Bearer ${token}`);
+        return fetch(input, { ...init, headers });
+      },
+    },
+  });
+}
 
 export const Route = createFileRoute("/api/generate")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const key = process.env["LOVABLE_API_KEY"];
-        if (!key) return new Response("AI is not configured.", { status: 500 });
+        const aiKey = process.env["LOVABLE_API_KEY"];
+        if (!aiKey) return new Response("AI is not configured.", { status: 500 });
+
+        const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+        if (!token) return new Response("Please sign in to keep designing.", { status: 401 });
 
         const parsed = Body.safeParse(await request.json());
         if (!parsed.success) return new Response("Invalid request.", { status: 400 });
+        const data = parsed.data;
 
+        const supabase = userClient(token);
+        const { data: userData, error: userError } = await supabase.auth.getUser(token);
+        if (userError || !userData.user)
+          return new Response("Your session expired. Sign in again.", { status: 401 });
+
+        const cost = CREDIT_COST[data.mode];
+        const { data: balance, error: spendError } = await supabase.rpc("spend_credits", {
+          _amount: cost,
+          _reason: data.mode === "plan" ? "Plan mode" : "Build mode",
+        });
+
+        if (spendError) {
+          const insufficient = (spendError.message ?? "").includes("INSUFFICIENT_CREDITS");
+          return new Response(
+            insufficient
+              ? "You're out of credits. Top up to keep designing."
+              : "Could not charge credits. Try again.",
+            { status: insufficient ? 402 : 500 },
+          );
+        }
+
+        const isPlan = data.mode === "plan";
         const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
-          headers: { "content-type": "application/json", "Lovable-API-Key": key },
+          headers: { "content-type": "application/json", "Lovable-API-Key": aiKey },
           body: JSON.stringify({
             model: "google/gemini-3.7-flash",
             stream: true,
             messages: [
-              { role: "system", content: DESIGN_SYSTEM_PROMPT },
-              { role: "user", content: buildUserPrompt(parsed.data) },
+              { role: "system", content: isPlan ? PLAN_SYSTEM_PROMPT : DESIGN_SYSTEM_PROMPT },
+              { role: "user", content: isPlan ? buildPlanPrompt(data) : buildUserPrompt(data) },
             ],
           }),
         });
 
         if (!upstream.ok || !upstream.body) {
+          // Refund the spend so a provider failure never costs the user credits.
+          await supabase.rpc("grant_credits", { _amount: cost, _plan: "" });
           const body = await upstream.text();
           let message = body;
           try {
@@ -41,8 +94,6 @@ export const Route = createFileRoute("/api/generate")({
           } catch {
             /* raw body */
           }
-          if (upstream.status === 402)
-            message = message || "You're out of AI credits — add more to keep designing.";
           if (upstream.status === 429)
             message = "ooops is rate limited right now. Try again in a few seconds.";
           return new Response(message || "Design generation failed.", {
@@ -90,6 +141,7 @@ export const Route = createFileRoute("/api/generate")({
           headers: {
             "content-type": "text/plain; charset=utf-8",
             "cache-control": "no-store",
+            "x-credits-remaining": String(balance ?? ""),
             "x-accel-buffering": "no",
           },
         });
