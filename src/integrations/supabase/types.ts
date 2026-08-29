@@ -14,13 +14,179 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      credit_ledger: {
+        Row: {
+          balance_after: number
+          created_at: string
+          delta: number
+          id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          balance_after: number
+          created_at?: string
+          delta: number
+          id?: string
+          reason: string
+          user_id: string
+        }
+        Update: {
+          balance_after?: number
+          created_at?: string
+          delta?: number
+          id?: string
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          credits: number
+          display_name: string | null
+          email: string | null
+          id: string
+          plan: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credits?: number
+          display_name?: string | null
+          email?: string | null
+          id: string
+          plan?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          plan?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      project_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          mode: string
+          project_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          mode?: string
+          project_id: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          mode?: string
+          project_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_messages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_versions: {
+        Row: {
+          created_at: string
+          html: string
+          id: string
+          label: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          html: string
+          id?: string
+          label?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          html?: string
+          id?: string
+          label?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_versions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string
+          html: string | null
+          id: string
+          target: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          html?: string | null
+          id?: string
+          target?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          html?: string | null
+          id?: string
+          target?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      grant_credits: {
+        Args: { _amount: number; _plan: string }
+        Returns: number
+      }
+      spend_credits: {
+        Args: { _amount: number; _reason: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
